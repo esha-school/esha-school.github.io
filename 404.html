@@ -55,6 +55,10 @@
   .shot { font-size: 14px; margin: 6px 0; }
   .wa { background: #25D366; color: #fff; text-decoration: none; text-align: center; }
   .req { color: #d92d20; }
+  .idrow { display: flex; align-items: stretch; }
+  .idrow .pfx { display: flex; align-items: center; padding: 0 12px; font-weight: bold; font-size: 17px; background: #eef3fa;
+                border: 1px solid #ccd; border-right: none; border-radius: 10px 0 0 10px; color: #1f4e8c; }
+  .idrow input { border-top-left-radius: 0 !important; border-bottom-left-radius: 0 !important; flex: 1; min-width: 0; font-size: 17px; letter-spacing: 1px; }
   .err { background: #fdecec; border-radius: 12px; padding: 22px; text-align: center; }
 </style>
 </head>
@@ -65,8 +69,8 @@
     <div class="te">హోంవర్క్ సమర్పణ</div>
     <span class="cls" id="clsLabel"></span>
 
-    <label>Roll number <span class="req">*</span> <span class="te">(రోల్ నంబర్)</span></label>
-    <input type="text" id="roll" inputmode="numeric" placeholder="e.g. 12">
+    <label>Student ID <span class="req">*</span> <span class="te">(స్టూడెంట్ ID – letter లో ఉంది)</span></label>
+    <div class="idrow"><span class="pfx">ESK-</span><input type="text" id="roll" inputmode="numeric" maxlength="6" placeholder="1001" autocomplete="off"></div>
 
     <label>Subject <span class="req">*</span> <span class="te">(విషయం)</span></label>
     <select id="subject"><option value="">— Choose subject —</option></select>
@@ -104,7 +108,7 @@
       ✅ Submit homework <span style="font-weight:normal">(పంపండి)</span>
     </button>
     <div id="status"></div>
-    <div class="hint">Make sure the student's name and roll number on top of the page are visible. One subject at a time — after submitting you get a Receipt ID and can add the next subject.</div>
+    <div class="hint">Make sure the student's name and Student ID on top of the page are visible. One subject at a time — after submitting you get a Receipt ID and can add the next subject.</div>
   </div>
   <div class="card ok" id="okBox" style="display:none">
     <b>✅ Homework submitted!</b>
@@ -272,9 +276,10 @@
   }
 
   async function submitAll() {
-    roll = document.getElementById('roll').value.trim();
+    const digits = document.getElementById('roll').value.replace(/\D/g, '');
+    roll = digits ? 'ESK-' + digits : '';
     subject = subjSel.value; hwDate = hwSel.value || AUTO_DATE;
-    if (!roll)    { setStatus('Please enter the roll number. (రోల్ నంబర్ ఇవ్వండి)'); document.getElementById('roll').focus(); return; }
+    if (!roll)    { setStatus('Please enter the Student ID from the school letter. (స్టూడెంట్ ID ఇవ్వండి)'); document.getElementById('roll').focus(); return; }
     if (!subject) { setStatus('Please choose the subject first. (విషయం ఎంచుకోండి)'); subjSel.focus(); return; }
     const btn = document.getElementById('submit');
     btn.disabled = true; lockInputs(true);
@@ -290,8 +295,10 @@
       showReceipt(r);
     } catch (err) {
       const msg = String(err.message || '');
-      setStatus(msg.indexOf('pages reached') > -1 ? msg : 'Not submitted yet – check internet and tap Submit again. No receipt = not submitted.');
+      const idErr = msg.indexOf('Student ID') > -1;
+      setStatus(msg.indexOf('pages reached') > -1 || idErr ? msg : 'Not submitted yet – check internet and tap Submit again. No receipt = not submitted.');
       btn.disabled = false;
+      if (idErr) { lockInputs(false); document.getElementById('roll').focus(); }
       render();
     }
   }
@@ -301,19 +308,19 @@
     const st = document.getElementById('rStatus');
     st.textContent = r.status === 'Late' ? '⚠️ Late' : '✓ On time';
     st.className = 'rstat ' + (r.status === 'Late' ? 'late' : 'on');
-    const rows = [['Class', CLASS], ['Subject', subject], ['Roll No', roll], ['Pages', r.pages],
+    const rows = [['Student', r.name || ''], ['Student ID', r.id || roll], ['Class', CLASS], ['Subject', subject], ['Pages', r.pages],
                   ['Homework given', r.hwDate], ['Submitted', r.submitted + ' (IST)'], ['Deadline', r.deadline + ' (IST)']];
     document.getElementById('rTable').innerHTML = rows.map(x => '<tr><td>' + x[0] + '</td><td><b>' +
       String(x[1]).replace(/[<>&]/g, '') + '</b></td></tr>').join('');
     const text = 'Esha School homework receipt\nReceipt ID: ' + r.receipt + '\n' + CLASS + ' · ' + subject +
-                 ' · Roll ' + roll + ' · ' + r.pages + ' page(s)\nHomework given: ' + r.hwDate +
+                 ' · ' + (r.name ? r.name + ' ' : '') + '(' + (r.id || roll) + ') · ' + r.pages + ' page(s)\nHomework given: ' + r.hwDate +
                  '\nSubmitted: ' + r.submitted + ' IST (' + r.status + ')';
     document.getElementById('waBtn').href = 'https://wa.me/?text=' + encodeURIComponent(text);
     show('form', false); show('okBox', true);
     window.scrollTo(0, 0);
   }
 
-  // Same student, next subject: keep roll number and homework date, clear photos and subject
+  // Same student, next subject: keep Student ID and homework date, clear photos and subject
   function nextSubject() {
     photos.length = 0; done = 0; sid = newSid();
     lockInputs(false); subjSel.value = '';
