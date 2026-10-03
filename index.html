@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homework Submission</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 0; background: #f4f6fb; color: #1d2433; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .te { color: #667; font-size: 14px; }
+  .cls { display: inline-block; background: #e7eefc; color: #1f4fbf; font-weight: bold;
+         padding: 4px 12px; border-radius: 20px; margin: 6px 0 10px; }
+  label { display: block; font-weight: bold; margin: 8px 0 6px; }
+  input[type=text] { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccd; border-radius: 10px; }
+
+  #camBox { position: relative; margin-top: 12px; background: #000; border-radius: 12px; overflow: hidden; display: none; }
+  #video { width: 100%; display: block; max-height: 60vh; object-fit: cover; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .camBar { display: flex; align-items: center; justify-content: space-around; padding: 10px; background: #111; }
+  .shutter { width: 68px; height: 68px; border-radius: 50%; border: 5px solid #fff; background: #1f9d55; }
+  .shutter:active { transform: scale(.92); }
+  .small { background: #333; color: #fff; border: 0; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+  #count { color: #fff; font-size: 14px; min-width: 70px; text-align: center; }
+
+  .btn { display: block; width: 100%; padding: 14px; font-size: 16px; font-weight: bold; border: 0;
+         border-radius: 12px; margin-top: 10px; cursor: pointer; }
+  .camera { background: #1f4fbf; color: #fff; }
+  .upload { background: #fff; color: #1f4fbf; border: 2px dashed #1f4fbf; }
+  .submit { background: #1f9d55; color: #fff; font-size: 18px; }
+  .submit:disabled { background: #a9c9b5; }
+  .row { display: flex; gap: 8px; }
+  .row .btn { flex: 1; }
+
+  #previews { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .thumb { position: relative; }
+  .thumb img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
+  .thumb button { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.65); color: #fff;
+                  border: 0; border-radius: 50%; width: 26px; height: 26px; font-size: 15px; }
+  #status { margin-top: 12px; font-size: 15px; text-align: center; }
+  .note { background: #fff7e0; border-radius: 10px; padding: 10px; font-size: 14px; margin-top: 10px; display: none; }
+  .hint { font-size: 13px; color: #667; margin-top: 8px; }
+  .ok { background: #e6f6ec; border-radius: 12px; padding: 22px; text-align: center; }
+  .ok b { font-size: 20px; color: #1f9d55; }
+  .err { background: #fdecec; border-radius: 12px; padding: 22px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="form">
+    <h1 id="schoolName">Homework Submission</h1>
+    <div class="te">హోంవర్క్ సమర్పణ</div>
+    <span class="cls" id="clsLabel"></span>
+
+    <label>Roll number <span class="te">(రోల్ నంబర్)</span></label>
+    <input type="text" id="roll" inputmode="numeric" placeholder="e.g. 12">
+
+    <div id="camBox">
+      <video id="video" playsinline autoplay muted></video>
+      <div id="flash"></div>
+      <div class="camBar">
+        <button class="small" onclick="switchCam()">🔄 Flip</button>
+        <button class="shutter" onclick="snap()" aria-label="Capture"></button>
+        <span id="count">0 pages</span>
+      </div>
+    </div>
+    <div class="hint" id="camHint" style="display:none">Hold the page flat, fill the frame, tap the green button. Tap again for each page.</div>
+
+    <div class="note" id="camNote">Live camera isn't available. Tap <b>Take photo</b> below — it opens your phone camera.</div>
+
+    <div class="row">
+      <button class="btn camera" id="nativeBtn" onclick="document.getElementById('nativeInput').click()" style="display:none">
+        📷 Take photo
+      </button>
+      <button class="btn upload" onclick="document.getElementById('galleryInput').click()">
+        🖼️ Upload from gallery<br><span class="te">గ్యాలరీ నుండి</span>
+      </button>
+    </div>
+    <input type="file" id="nativeInput" accept="image/*" capture="environment" hidden>
+    <input type="file" id="galleryInput" accept="image/*" multiple hidden>
+
+    <div id="previews"></div>
+
+    <button class="btn submit" id="submit" disabled onclick="submitAll()">
+      ✅ Submit homework <span style="font-weight:normal">(పంపండి)</span>
+    </button>
+    <div id="status"></div>
+    <div class="hint">Make sure the student's name and roll number on top of the page are visible.</div>
+  </div>
+</div>
+
+<script>
+  // ===== SETTINGS (edit these) =====
+  const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxnHfeT7L9OgJqhQtFXZQ0l6N7nURGxV1Qaoyg3qvhuU7wmcfOIAMB28W_RE2QhBHzk/exec'; // ends with /exec
+  const SCHOOL_NAME = 'Esha School – Homework';
+  const CLASSES = ['Nursery','LKG','UKG','Class 1','Class 2','Class 3','Class 4','Class 5',
+                   'Class 6','Class 7','Class 8','Class 9','Class 10'];
+  // =================================
+
+  const MAX = 1600, QUALITY = 0.8;
+  // Class comes from the link path, e.g. /class-5/ -> "Class 5", /lkg/ -> "LKG"
+  const slug = (location.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+  const CLASS = CLASSES.find(c => c.toLowerCase().replace(/\s+/g, '-') === slug) ||
+                new URLSearchParams(location.search).get('class') || '';
+  const photos = [];
+  let stream = null, facing = 'environment', done = 0;
+
+  document.getElementById('schoolName').textContent = SCHOOL_NAME;
+
+  if (CLASSES.indexOf(CLASS) === -1) {
+    document.getElementById('form').innerHTML =
+      '<div class="err"><b>This link is incomplete.</b><br><br>Please use the homework link your class teacher shared.' +
+      '<br><span class="te">మీ టీచర్ పంపిన లింక్ ఉపయోగించండి.</span></div>';
+  } else {
+    document.getElementById('clsLabel').textContent = CLASS;
+    document.title = CLASS + ' – Homework';
+    window.addEventListener('load', startCam);
+  }
+
+  // ---------- Live camera ----------
+  async function startCam() {
+    stopCam();
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('unsupported');
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      const v = document.getElementById('video');
+      v.srcObject = stream;
+      await v.play();
+      show('camBox', true); show('camHint', true); show('camNote', false); show('nativeBtn', false);
+    } catch (e) {
+      show('camBox', false); show('camHint', false); show('camNote', true); show('nativeBtn', true);
+    }
+  }
+  function stopCam() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
+  function switchCam() { facing = facing === 'environment' ? 'user' : 'environment'; startCam(); }
+
+  function snap() {
+    const v = document.getElementById('video');
+    if (!v.videoWidth) return;
+    let w = v.videoWidth, h = v.videoHeight;
+    if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(v, 0, 0, w, h);
+    photos.push(c.toDataURL('image/jpeg', QUALITY).split(',')[1]);
+    const f = document.getElementById('flash');
+    f.style.opacity = 0.8; setTimeout(() => f.style.opacity = 0, 150);
+    if (navigator.vibrate) navigator.vibrate(40);
+    render();
+  }
+
+  // ---------- Phone camera / gallery ----------
+  async function addFiles(files) {
+    if (!files || !files.length) return;
+    setStatus('Preparing photo…');
+    for (const f of files) { try { photos.push(await shrink(f)); } catch (e) {} }
+    render(); setStatus('');
+  }
+  document.getElementById('nativeInput')?.addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+  document.getElementById('galleryInput')?.addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+
+  function shrink(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(img.src);
+        resolve(c.toDataURL('image/jpeg', QUALITY).split(',')[1]);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // ---------- Preview & submit ----------
+  function render() {
+    const box = document.getElementById('previews');
+    box.innerHTML = '';
+    photos.forEach((p, i) => {
+      const d = document.createElement('div'); d.className = 'thumb';
+      d.innerHTML = '<img src="data:image/jpeg;base64,' + p + '">' +
+                    (i >= done ? '<button onclick="removePhoto(' + i + ')">×</button>' : '');
+      box.appendChild(d);
+    });
+    document.getElementById('count').textContent = photos.length + (photos.length === 1 ? ' page' : ' pages');
+    document.getElementById('submit').disabled = photos.length === 0;
+  }
+  function removePhoto(i) { if (i >= done) { photos.splice(i, 1); render(); } }
+  function setStatus(t) { document.getElementById('status').textContent = t; }
+  function show(id, on) { document.getElementById(id).style.display = on ? 'block' : 'none'; }
+
+  async function sendOne(roll, i) {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight
+      body: JSON.stringify({ cls: CLASS, roll: roll, index: i + 1, data: photos[i] })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'Upload failed');
+  }
+
+  async function submitAll() {
+    const roll = document.getElementById('roll').value.trim();
+    if (!roll && !confirm('No roll number entered. Submit anyway?')) return;
+    const btn = document.getElementById('submit');
+    btn.disabled = true;
+    try {
+      for (let i = done; i < photos.length; i++) {
+        setStatus('Uploading page ' + (i + 1) + ' of ' + photos.length + '…');
+        await sendOne(roll, i);
+        done = i + 1;
+      }
+      stopCam();
+      document.getElementById('form').innerHTML =
+        '<div class="ok"><b>✅ Homework submitted!</b><br><br>' + CLASS + ' · ' + photos.length +
+        ' page(s)<br><span class="te">హోంవర్క్ పంపబడింది. ధన్యవాదాలు!</span><br><br>' +
+        '<a href="javascript:location.reload()">Submit for another student</a></div>';
+    } catch (err) {
+      setStatus('Upload failed – check internet and tap Submit again.');
+      btn.disabled = false;
+      render();
+    }
+  }
+</script>
+</body>
+</html>
