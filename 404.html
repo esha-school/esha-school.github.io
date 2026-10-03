@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Homework Submission</title>
+<title>Home Work Submission</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: Arial, sans-serif; margin: 0; background: #f4f6fb; color: #1d2433; }
@@ -45,21 +45,34 @@
   .hint { font-size: 13px; color: #667; margin-top: 8px; }
   .ok { background: #e6f6ec; border-radius: 12px; padding: 22px; text-align: center; }
   .ok b { font-size: 20px; color: #1f9d55; }
+  .rcpt { background: #fff; border: 2px dashed #1f9d55; border-radius: 12px; padding: 14px; margin: 14px 0 10px; }
+  .rl { font-size: 12px; letter-spacing: 1px; color: #667; }
+  .rid { font-size: 24px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 1px; margin: 4px 0 6px; word-break: break-all; }
+  .rstat { display: inline-block; padding: 3px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 8px; }
+  .rstat.on { background: #e6f6ec; color: #1f7a45; } .rstat.late { background: #fdecec; color: #b42318; }
+  #rTable { width: 100%; font-size: 14px; text-align: left; border-collapse: collapse; }
+  #rTable td { padding: 3px 0; } #rTable td:first-child { color: #667; width: 42%; }
+  .shot { font-size: 14px; margin: 6px 0; }
+  .wa { background: #25D366; color: #fff; text-decoration: none; text-align: center; }
+  .req { color: #d92d20; }
   .err { background: #fdecec; border-radius: 12px; padding: 22px; text-align: center; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card" id="form">
-    <h1 id="schoolName">Homework Submission</h1>
+    <h1 id="schoolName">Home Work Submission</h1>
     <div class="te">హోంవర్క్ సమర్పణ</div>
     <span class="cls" id="clsLabel"></span>
 
-    <label>Roll number <span class="te">(రోల్ నంబర్)</span></label>
+    <label>Roll number <span class="req">*</span> <span class="te">(రోల్ నంబర్)</span></label>
     <input type="text" id="roll" inputmode="numeric" placeholder="e.g. 12">
 
-    <label>Subject <span class="te">(విషయం)</span></label>
+    <label>Subject <span class="req">*</span> <span class="te">(విషయం)</span></label>
     <select id="subject"><option value="">— Choose subject —</option></select>
+
+    <label>Homework given on <span class="te">(optional · ఐచ్ఛికం)</span></label>
+    <select id="hwDate"></select>
 
     <div id="camBox">
       <video id="video" playsinline autoplay muted></video>
@@ -91,12 +104,19 @@
       ✅ Submit homework <span style="font-weight:normal">(పంపండి)</span>
     </button>
     <div id="status"></div>
-    <div class="hint">Make sure the student's name and roll number on top of the page are visible. One subject at a time — after submitting you can add the next subject.</div>
+    <div class="hint">Make sure the student's name and roll number on top of the page are visible. One subject at a time — after submitting you get a Receipt ID and can add the next subject.</div>
   </div>
   <div class="card ok" id="okBox" style="display:none">
-    <b>✅ Homework submitted!</b><br><br>
-    <span id="okText"></span><br>
-    <span class="te">హోంవర్క్ పంపబడింది. ధన్యవాదాలు!</span>
+    <b>✅ Homework submitted!</b>
+    <div class="te">హోంవర్క్ పంపబడింది. ధన్యవాదాలు!</div>
+    <div class="rcpt">
+      <div class="rl">RECEIPT ID</div>
+      <div class="rid" id="rId"></div>
+      <div id="rStatus" class="rstat"></div>
+      <table id="rTable"></table>
+    </div>
+    <div class="shot">📸 Please take a screenshot of this receipt.<br><span class="te">ఈ రసీదు స్క్రీన్‌షాట్ తీసుకోండి.</span></div>
+    <a class="btn wa" id="waBtn" target="_blank" rel="noopener">Send receipt on WhatsApp</a>
     <button class="btn camera" onclick="nextSubject()">➕ Next subject (same student)<br><span class="te" style="color:#dfe7ff">మరో విషయం</span></button>
     <button class="btn upload" onclick="location.reload()">👤 Another student</button>
   </div>
@@ -105,7 +125,7 @@
 <script>
   // ===== SETTINGS (edit these) =====
   const SCRIPT_URL  = 'https://script.google.com/macros/s/AKfycbxnHfeT7L9OgJqhQtFXZQ0l6N7nURGxV1Qaoyg3qvhuU7wmcfOIAMB28W_RE2QhBHzk/exec'; // ends with /exec
-  const SCHOOL_NAME = 'Esha School – Homework';
+  const SCHOOL_NAME = 'Home Work Submission';
   const CLASSES = ['Nursery','LKG','UKG','Class 1','Class 2','Class 3','Class 4','Class 5',
                    'Class 6','Class 7','Class 8','Class 9','Class 10'];
   const SUBJECTS = ['Telugu','Hindi','English','Maths','EVS','Physics','Chemistry','Biology',
@@ -130,7 +150,7 @@
       '<br><span class="te">మీ టీచర్ పంపిన లింక్ ఉపయోగించండి.</span></div>';
   } else {
     document.getElementById('clsLabel').textContent = CLASS;
-    document.title = CLASS + ' – Homework';
+    document.title = CLASS + ' – Home Work Submission';
     window.addEventListener('load', startCam);
   }
 
@@ -211,46 +231,93 @@
   function setStatus(t) { document.getElementById('status').textContent = t; }
   function show(id, on) { document.getElementById(id).style.display = on ? 'block' : 'none'; }
 
-  async function sendOne(roll, i) {
+  // ---------- Homework date (India time): before 8:30 AM default = yesterday ----------
+  const hwSel = document.getElementById('hwDate');
+  let AUTO_DATE = '';
+  (function fillDates() {
+    if (!hwSel) return;
+    const istNow = new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000); // India clock
+    const beforeCutoff = istNow.getHours() * 60 + istNow.getMinutes() < 8 * 60 + 30;
+    const names = ['Today', 'Yesterday', '2 days ago', '3 days ago'];
+    for (let k = 0; k < 4; k++) {
+      const d = new Date(istNow.getTime() - k * 86400000);
+      const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const o = document.createElement('option');
+      o.value = ymd;
+      o.textContent = names[k] + ' – ' + d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+      hwSel.appendChild(o);
+    }
+    const ns = document.createElement('option'); ns.value = ''; ns.textContent = 'Not sure (school will decide)'; hwSel.appendChild(ns);
+    AUTO_DATE = hwSel.options[beforeCutoff ? 1 : 0].value;
+    hwSel.selectedIndex = beforeCutoff ? 1 : 0;
+  })();
+
+  // ---------- Talking to the school's script ----------
+  let sid = newSid(), subject = '', roll = '', hwDate = '';
+  function newSid() { return (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)).slice(0, 16); }
+
+  async function post(payload) {
     const res = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight
-      body: JSON.stringify({ cls: CLASS, subject: subject, roll: roll, index: i + 1, data: photos[i] })
+      body: JSON.stringify(Object.assign({ cls: CLASS, subject: subject, roll: roll, hwDate: hwDate, sid: sid }, payload))
     });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || 'Upload failed');
+    return out;
   }
 
-  let subject = '';
+  function lockInputs(on) {
+    ['roll', 'subject', 'hwDate'].forEach(id => document.getElementById(id).disabled = on);
+  }
+
   async function submitAll() {
-    const roll = document.getElementById('roll').value.trim();
-    subject = subjSel.value;
+    roll = document.getElementById('roll').value.trim();
+    subject = subjSel.value; hwDate = hwSel.value || AUTO_DATE;
+    if (!roll)    { setStatus('Please enter the roll number. (రోల్ నంబర్ ఇవ్వండి)'); document.getElementById('roll').focus(); return; }
     if (!subject) { setStatus('Please choose the subject first. (విషయం ఎంచుకోండి)'); subjSel.focus(); return; }
-    if (!roll && !confirm('No roll number entered. Submit anyway?')) return;
     const btn = document.getElementById('submit');
-    btn.disabled = true; subjSel.disabled = true;
+    btn.disabled = true; lockInputs(true);
     try {
       for (let i = done; i < photos.length; i++) {
         setStatus('Uploading page ' + (i + 1) + ' of ' + photos.length + '…');
-        await sendOne(roll, i);
+        await post({ action: 'upload', index: i + 1, data: photos[i] });
         done = i + 1;
       }
+      setStatus('Checking with school… (తనిఖీ చేస్తున్నాం)');
+      const r = await post({ action: 'finalize', pages: photos.length });
       stopCam();
-      document.getElementById('okText').textContent =
-        CLASS + ' · ' + subject + ' · Roll ' + (roll || '–') + ' · ' + photos.length + ' page(s)';
-      show('form', false); show('okBox', true);
-      window.scrollTo(0, 0);
+      showReceipt(r);
     } catch (err) {
-      setStatus('Upload failed – check internet and tap Submit again.');
+      const msg = String(err.message || '');
+      setStatus(msg.indexOf('pages reached') > -1 ? msg : 'Not submitted yet – check internet and tap Submit again. No receipt = not submitted.');
       btn.disabled = false;
       render();
     }
   }
 
-  // Same student, next subject: keep roll number, clear photos and subject
+  function showReceipt(r) {
+    document.getElementById('rId').textContent = r.receipt;
+    const st = document.getElementById('rStatus');
+    st.textContent = r.status === 'Late' ? '⚠️ Late' : '✓ On time';
+    st.className = 'rstat ' + (r.status === 'Late' ? 'late' : 'on');
+    const rows = [['Class', CLASS], ['Subject', subject], ['Roll No', roll], ['Pages', r.pages],
+                  ['Homework given', r.hwDate], ['Submitted', r.submitted + ' (IST)'], ['Deadline', r.deadline + ' (IST)']];
+    document.getElementById('rTable').innerHTML = rows.map(x => '<tr><td>' + x[0] + '</td><td><b>' +
+      String(x[1]).replace(/[<>&]/g, '') + '</b></td></tr>').join('');
+    const text = 'Esha School homework receipt\nReceipt ID: ' + r.receipt + '\n' + CLASS + ' · ' + subject +
+                 ' · Roll ' + roll + ' · ' + r.pages + ' page(s)\nHomework given: ' + r.hwDate +
+                 '\nSubmitted: ' + r.submitted + ' IST (' + r.status + ')';
+    document.getElementById('waBtn').href = 'https://wa.me/?text=' + encodeURIComponent(text);
+    show('form', false); show('okBox', true);
+    window.scrollTo(0, 0);
+  }
+
+  // Same student, next subject: keep roll number and homework date, clear photos and subject
   function nextSubject() {
-    photos.length = 0; done = 0;
-    subjSel.disabled = false; subjSel.value = '';
+    photos.length = 0; done = 0; sid = newSid();
+    lockInputs(false); subjSel.value = '';
+    document.getElementById('submit').disabled = true;
     setStatus(''); render();
     show('okBox', false); show('form', true);
     window.scrollTo(0, 0);
